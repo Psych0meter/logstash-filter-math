@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name            = 'logstash-filter-math'
-  s.version         = '1.1.1'
+  s.version         = '1.1.2'
   s.licenses        = ['Apache License (2.0)']
   s.summary         = "Do simple math functions on numeric fields."
   s.description     = "This gem is a logstash plugin required to be installed on top of the Logstash core pipeline using $LS_HOME/bin/plugin install gemname. This gem is not a stand-alone program"
@@ -20,5 +20,10 @@ Gem::Specification.new do |s|
 
   # Gem dependencies
   s.add_runtime_dependency "logstash-core-plugin-api", ">= 1.60", "<= 2.99"
-  s.add_development_dependency 'logstash-devutils'
+
+  # Development dependencies
+  s.add_development_dependency 'logstash-devutils', ">= 2.6", "< 2.7"
+
+  # Ruby version constraint
+  s.required_ruby_version = '>= 3.0'
 end
