@@ -1,4 +1,5 @@
-# encoding: utf-8
+# frozen_string_literal: true
+# encoding: UTF-8
 require "logstash/util/loggable"
 
 module LogStash module Filters
@@ -7,7 +8,10 @@ module LogStash module Filters
   # It supports literal values, event field references, and register/memory references.
   module MathCalculationElements
     # Regular expression to match register/memory references like "MEM[123]"
-    REGISTER_REFERENCE_RE = /^MEM\[(\d+)]$/
+    REGISTER_REFERENCE_RE = /\AMEM\[(\d+)\]\z/
+
+    # Regular expression to detect numeric literal strings (integers, floats, optional exponent)
+    NUMERIC_LITERAL_RE = /\A-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\z/
 
     # Factory method to create the appropriate element based on the reference type
     #
@@ -18,17 +22,34 @@ module LogStash module Filters
       case reference
       when Numeric
         if position == 3
-          # literal reference for result element
+          # numeric literal as a result target doesn't make sense; return nil so validation will trap it
           nil
         else
           LiteralElement.new(reference, position)
         end
       when String
-        match = REGISTER_REFERENCE_RE.match(reference)
-        if match
-          RegisterElement.new(reference, position, match[1].to_i)
+        stripped = reference.to_s.strip
+        # If string looks like a numeric literal, treat it as a literal element
+        if stripped.match?(NUMERIC_LITERAL_RE)
+          if position == 3
+            # result cannot be a literal; return nil to trigger error later
+            nil
+          else
+            # convert to Integer or Float as appropriate
+            numeric_value = if stripped.match?(/\A-?\d+\z/)
+                              Integer(stripped) rescue Float(stripped)
+                            else
+                              Float(stripped)
+                            end
+            LiteralElement.new(numeric_value, position)
+          end
         else
-          FieldElement.new(reference, position)
+          match = REGISTER_REFERENCE_RE.match(stripped)
+          if match
+            RegisterElement.new(reference, position, match[1].to_i)
+          else
+            FieldElement.new(reference, position)
+          end
         end
       else
         nil
@@ -44,7 +65,12 @@ module LogStash module Filters
         @reference = reference
         @position = position
         @index = index
-        @description = (position == 3 ? "#{@index}" : "operand #{@position}").prepend("register ").concat(": '#{@reference}'")
+        # Build readable description
+        @description = if position == 3
+                         "register result: '#{@reference}' (index #{@index})"
+                       else
+                         "register operand #{@position}: '#{@reference}' (index #{@index})"
+                       end
       end
 
       # @return [Integer] The register index used as a key
@@ -62,7 +88,6 @@ module LogStash module Filters
       # @param value [Numeric] The value to store
       # @param event_register_context [Object] Context providing register access
       def set(value, event_register_context)
-        # raise usage error if called when position != 3 ??
         event_register_context.set(self, value)
       end
 
@@ -71,7 +96,7 @@ module LogStash module Filters
       # @param event_register_context [Object] Context providing register access
       # @return [Numeric, nil] The stored value or nil if not found
       def get(event_register_context)
-        event_register_context.get(self) #log warning if nil
+        event_register_context.get(self)
       end
 
       # @return [String] Debug representation
@@ -94,7 +119,11 @@ module LogStash module Filters
       def initialize(field, position)
         @field = field
         @position = position
-        @description = (position == 3 ? "result" : "operand #{@position}").prepend("event ").concat(": '#{@field}'")
+        @description = if position == 3
+                         "event result: '#{@field}'"
+                       else
+                         "event operand #{@position}: '#{@field}'"
+                       end
       end
 
       # @return [String] The field name used as a key
@@ -125,11 +154,11 @@ module LogStash module Filters
           logger.warn("field not found", "field" => @field, "event" => event_register_context.event.to_hash)
           return nil
         end
-        
+
         # Convert string representations of numbers to actual numeric types
         numeric_value = convert_to_numeric(value)
-        
-        if numeric_value
+
+        if !numeric_value.nil?
           numeric_value
         elsif value.is_a?(LogStash::Timestamp) || value.is_a?(Time)
           value.to_f
@@ -162,7 +191,7 @@ module LogStash module Filters
         when String
           convert_string_to_numeric(value)
         when TrueClass, FalseClass
-          value ? 1 : 0 # Convert booleans to numbers
+          value ? 1 : 0
         else
           nil
         end
@@ -175,16 +204,16 @@ module LogStash module Filters
       def convert_string_to_numeric(str)
         cleaned = str.to_s.strip
         return nil if cleaned.empty?
-        
+
         # Check for integer pattern (optional sign, digits only)
         if cleaned.match?(/\A-?\d+\z/)
           begin
             return Integer(cleaned)
           rescue ArgumentError
-            return nil
+            # fallback to Float parse
           end
         end
-        
+
         # Check for float pattern (optional sign, digits with optional decimal and exponent)
         if cleaned.match?(/\A-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\z/)
           begin
@@ -193,7 +222,7 @@ module LogStash module Filters
             return nil
           end
         end
-        
+
         nil
       end
     end
