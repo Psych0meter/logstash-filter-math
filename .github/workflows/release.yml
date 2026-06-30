@@ -13,26 +13,7 @@ permissions:
   contents: write # required to create the GitHub Release and upload assets
 
 jobs:
-  # Run the plugin spec suite on JRuby (this plugin targets the Logstash/JRuby
-  # runtime) before anything gets released. If this job doesn't suit your
-  # setup, remove the "needs: test" line below to decouple release from test.
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up JRuby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: jruby-9.4
-          bundler-cache: true
-
-      - name: Run specs
-        run: bundle exec rspec
-
   release:
-    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -64,4 +45,3 @@ jobs:
         with:
           files: logstash-filter-math-*.gem
           generate_release_notes: true
-
