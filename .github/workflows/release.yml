@@ -65,14 +65,3 @@ jobs:
           files: logstash-filter-math-*.gem
           generate_release_notes: true
 
-      # Optional: only runs if you've added a RUBYGEMS_API_KEY repo secret.
-      # NOTE: this gem name is already owned by Elastic on rubygems.org, so
-      # pushing under the same name will fail unless you rename the gem in
-      # logstash-filter-math.gemspec (e.g. to something like
-      # "logstash-filter-math-psych0meter"). Safe to delete this step if you
-      # only want the GitHub Release asset above.
-      - name: Publish to RubyGems
-        if: ${{ secrets.RUBYGEMS_API_KEY != '' }}
-        env:
-          GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
-        run: gem push logstash-filter-math-*.gem
