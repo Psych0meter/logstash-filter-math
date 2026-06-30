@@ -1,0 +1,78 @@
+name: Release gem
+
+# Fires on any tag that looks like a semver version, with or without a
+# leading "v" - e.g. "1.2.0" (matches this repo's existing tagging style,
+# see tag "1.1.3") or "v1.2.0".
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write # required to create the GitHub Release and upload assets
+
+jobs:
+  # Run the plugin spec suite on JRuby (this plugin targets the Logstash/JRuby
+  # runtime) before anything gets released. If this job doesn't suit your
+  # setup, remove the "needs: test" line below to decouple release from test.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JRuby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: jruby-9.4
+          bundler-cache: true
+
+      - name: Run specs
+        run: bundle exec rspec
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2' # plain MRI is fine here, building a gem needs no JRuby/logstash-core
+
+      - name: Derive gem version from the pushed tag
+        id: version
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          version="${tag#v}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag '$tag' is not a valid semver version (expected e.g. 1.2.3 or v1.2.3)"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build gem
+        env:
+          GEM_VERSION: ${{ steps.version.outputs.version }}
+        run: gem build logstash-filter-math.gemspec
+
+      - name: Create GitHub release with gem attached
+        uses: softprops/action-gh-release@v2
+        with:
+          files: logstash-filter-math-*.gem
+          generate_release_notes: true
+
+      # Optional: only runs if you've added a RUBYGEMS_API_KEY repo secret.
+      # NOTE: this gem name is already owned by Elastic on rubygems.org, so
+      # pushing under the same name will fail unless you rename the gem in
+      # logstash-filter-math.gemspec (e.g. to something like
+      # "logstash-filter-math-psych0meter"). Safe to delete this step if you
+      # only want the GitHub Release asset above.
+      - name: Publish to RubyGems
+        if: ${{ secrets.RUBYGEMS_API_KEY != '' }}
+        env:
+          GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
+        run: gem push logstash-filter-math-*.gem
