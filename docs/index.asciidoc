@@ -106,6 +106,7 @@ This plugin supports the following configuration options plus the <<plugins-{typ
 |=======================================================================
 |Setting |Input type|Required
 | <<plugins-{type}s-{plugin}-calculate>> |<<array,array>> of <<array,array>>|Yes
+| <<plugins-{type}s-{plugin}-tag_on_failure>> |<<array,array>>|No
 |=======================================================================
 
 Also see <<plugins-{type}s-{plugin}-common-options>> for a list of options supported by all
@@ -124,7 +125,10 @@ The calculation to be performed. As can be seen from the example above by using
 multiple inner arrays one can perform calculation with multiple steps or multiple
 distinct calculations on a single event.
 
-Each inner array *must have 4 elements*
+Each inner array is either a *binary* calculation with 4 elements
+(`[operator, left_operand, right_operand, target]`) or a *unary* calculation
+with 3 elements (`[operator, operand, target]`, used for `abs`, `neg`, `round`-free
+single-operand operators, and the unit conversion operators below).
 
 The first element must be the operator. Valid operators are:
 
@@ -139,11 +143,22 @@ The first element must be the operator. Valid operators are:
 | Divide | '/', 'div', 'divide'
 | Modulo | 'mod', 'modulo'
 | FloatDivide | 'fdiv', 'float divide'
+| Abs (unary) | 'abs'
+| Negate (unary) | 'neg', 'negate'
+| Percent change | 'percent_change'
+| Miles to kilometers (unary) | 'mi_to_km'
+| Kilometers to miles (unary) | 'km_to_mi'
+| Meters to feet (unary) | 'm_to_ft'
+| Feet to meters (unary) | 'ft_to_m'
+| Celsius to Fahrenheit (unary) | 'c_to_f'
+| Fahrenheit to Celsius (unary) | 'f_to_c'
 |=======================================================================
 
 [TIP]
 You may use any of the representations to refer to an operator. For instance, long hand representation
 maybe more clear to read when you or a co-worker looks at your config some months later.
+
+For a *binary* calculation (4 elements):
 
 The second element is the left hand side operand. It can be a field, a literal or a memory register.
 If referring to a memory register, ensure that it has been set to a value in a previous calculation.
@@ -154,6 +169,11 @@ The third element is the right hand side operand. It can be a field, a literal o
 
 The fourth element is the "target". It is where the result is stored and can be a
 memory register or a field in your event. It cannot be a literal.
+
+For a *unary* calculation (3 elements, e.g. `abs`, `neg`, or one of the unit conversion
+operators), the second element is the single operand (field, literal, or memory register)
+and the third element is the "target", with the same rules as above.
+
 [NOTE]
 You will get a warning if the target of the last calculation is a memory register because
 the final result will not be added to the event.
@@ -162,6 +182,17 @@ the final result will not be added to the event.
 For a calculation to continue, any operand taken from a field in the event must be
 `Numeric` or a `Logstash Timestamp` and not nil. Timestamps are converted to
 floating point seconds since the UNIX epoch (Jan, 1 1970 00:00:00 UTC) before being operated on.
+
+[id="plugins-{type}s-{plugin}-tag_on_failure"]
+===== `tag_on_failure`
+
+  * Value type is <<array,array>>
+  * Default value is `["_mathexception"]`
+
+If a calculation raises an unexpected runtime error (for example, an extremely large
+or otherwise out-of-range operand to `round`), that single calculation is skipped, the
+event is tagged with the values in this setting, and the remaining calculations in
+`calculate` still run. This prevents one malformed event from crashing the pipeline.
 
 ===== Operators
 The operators `Divide`, `FloatDivide` and `Modulo` have a divide by zero check before the operation is executed. +

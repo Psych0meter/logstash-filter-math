@@ -87,8 +87,9 @@ module LogStash module Filters
       def call(op1, op2); op1 ** op2; end
 
       def invalid?(op1, op2 = nil, event = nil)
-        # only relevant for binary
-        if op1.is_a?(Numeric) && op1 < 0 && !op2.respond_to?(:integer?) ? false : (!op2.integer?)
+        # Only a negative base raised to a non-integer (fractional) exponent is invalid;
+        # a positive/zero base with a fractional exponent is perfectly valid (e.g. 2.2 ** 1.2).
+        if op2 && op1.is_a?(Numeric) && op1 < 0 && !op2.integer?
           warning = "raising a negative number to a fractional exponent results in a complex number that cannot be stored in an event"
           if event
             logger.warn(warning, "operand 1" => op1, "operand 2" => op2, "event" => event.to_hash)

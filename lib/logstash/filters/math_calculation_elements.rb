@@ -151,7 +151,7 @@ module LogStash module Filters
       def get(event_register_context)
         value = event_register_context.get(self)
         if value.nil?
-          logger.warn("field not found", "field" => @field, "event" => event_register_context.event.to_hash)
+          logger.warn("field not found", "field" => @field, "event" => event_register_context.event.to_hash) if logger.warn?
           return nil
         end
 
@@ -163,7 +163,7 @@ module LogStash module Filters
         elsif value.is_a?(LogStash::Timestamp) || value.is_a?(Time)
           value.to_f
         else
-          logger.warn("field value is not numeric or time", "field" => @field, "value" => value, "event" => event_register_context.event.to_hash)
+          logger.warn("field value is not numeric or time", "field" => @field, "value" => value, "event" => event_register_context.event.to_hash) if logger.warn?
           nil
         end
       end

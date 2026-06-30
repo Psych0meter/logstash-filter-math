@@ -389,6 +389,160 @@ describe LogStash::Filters::Math do
     end
   end
 
+  describe "Unary functions" do
+    describe "Abs" do
+      config <<-CONFIG
+        filter {  math { calculate => [ [ "abs", "var1", "result" ] ] } }
+      CONFIG
+
+      describe "should return the absolute value of a negative number" do
+        sample( "var1" => -5 ) do
+          expect( subject.get("result") ).to eq( 5 )
+        end
+      end
+
+      describe "should return the same value for a positive number" do
+        sample( "var1" => 5.5 ) do
+          expect( subject.get("result") ).to eq( 5.5 )
+        end
+      end
+
+      describe "missing operand should result in nil" do
+        sample( "other" => 1 ) do
+          expect( subject.get("result") ).to be_nil
+        end
+      end
+    end
+
+    describe "Negate" do
+      config <<-CONFIG
+        filter {  math { calculate => [ [ "neg", "var1", "result" ] ] } }
+      CONFIG
+
+      describe "should negate a positive number" do
+        sample( "var1" => 5 ) do
+          expect( subject.get("result") ).to eq( -5 )
+        end
+      end
+
+      describe "should negate a negative number" do
+        sample( "var1" => -5.5 ) do
+          expect( subject.get("result") ).to eq( 5.5 )
+        end
+      end
+    end
+  end
+
+  describe "PercentChange" do
+    config <<-CONFIG
+      filter {  math { calculate => [ [ "percent_change", "old_value", "new_value", "result" ] ] } }
+    CONFIG
+
+    describe "should calculate a positive percent change" do
+      sample( "old_value" => 80, "new_value" => 100 ) do
+        expect( subject.get("result") ).to eq( 25.0 )
+      end
+    end
+
+    describe "should calculate a negative percent change" do
+      sample( "old_value" => 100, "new_value" => 80 ) do
+        expect( subject.get("result") ).to eq( -20.0 )
+      end
+    end
+
+    describe "old value being zero should result in nil (would be infinity)" do
+      sample( "old_value" => 0, "new_value" => 80 ) do
+        expect( subject.get("result") ).to be_nil
+      end
+    end
+  end
+
+  describe "Unit conversions" do
+    describe "mi_to_km" do
+      config <<-CONFIG
+        filter {  math { calculate => [ [ "mi_to_km", "var1", "result" ] ] } }
+      CONFIG
+      sample( "var1" => 1 ) do
+        expect( subject.get("result") ).to be_within(0.0001).of(1.609344)
+      end
+    end
+
+    describe "km_to_mi" do
+      config <<-CONFIG
+        filter {  math { calculate => [ [ "km_to_mi", "var1", "result" ] ] } }
+      CONFIG
+      sample( "var1" => 1.609344 ) do
+        expect( subject.get("result") ).to be_within(0.0001).of(1.0)
+      end
+    end
+
+    describe "m_to_ft" do
+      config <<-CONFIG
+        filter {  math { calculate => [ [ "m_to_ft", "var1", "result" ] ] } }
+      CONFIG
+      sample( "var1" => 1 ) do
+        expect( subject.get("result") ).to be_within(0.0001).of(3.28084)
+      end
+    end
+
+    describe "ft_to_m" do
+      config <<-CONFIG
+        filter {  math { calculate => [ [ "ft_to_m", "var1", "result" ] ] } }
+      CONFIG
+      sample( "var1" => 3.28083989501312 ) do
+        expect( subject.get("result") ).to be_within(0.0001).of(1.0)
+      end
+    end
+
+    describe "c_to_f" do
+      config <<-CONFIG
+        filter {  math { calculate => [ [ "c_to_f", "var1", "result" ] ] } }
+      CONFIG
+      sample( "var1" => 0 ) do
+        expect( subject.get("result") ).to eq( 32.0 )
+      end
+      sample( "var1" => 100 ) do
+        expect( subject.get("result") ).to eq( 212.0 )
+      end
+    end
+
+    describe "f_to_c" do
+      config <<-CONFIG
+        filter {  math { calculate => [ [ "f_to_c", "var1", "result" ] ] } }
+      CONFIG
+      sample( "var1" => 32 ) do
+        expect( subject.get("result") ).to eq( 0.0 )
+      end
+      sample( "var1" => 212 ) do
+        expect( subject.get("result") ).to eq( 100.0 )
+      end
+    end
+  end
+
+  describe "Resilience" do
+    describe "a runtime exception inside a calculation is caught, tagged, and does not crash the filter" do
+      config <<-CONFIG
+        filter {  math { calculate => [ [ "round", "var1", "var2", "result" ] ] } }
+      CONFIG
+
+      # 42.0.round(10**20) raises RangeError: bignum too big to convert into `long'
+      sample( "var1" => 42.0, "var2" => 10**20 ) do
+        expect( subject.get("result") ).to be_nil
+        expect( subject.get("tags") ).to include("_mathexception")
+      end
+    end
+
+    describe "tag_on_failure can be customized" do
+      config <<-CONFIG
+        filter {  math { calculate => [ [ "round", "var1", "var2", "result" ] ]  tag_on_failure => ["_my_custom_tag"] } }
+      CONFIG
+
+      sample( "var1" => 42.0, "var2" => 10**20 ) do
+        expect( subject.get("tags") ).to include("_my_custom_tag")
+      end
+    end
+  end
+
   describe "Literals" do
     context "how much smaller is one number than another in percent" do
       config <<-CONFIG

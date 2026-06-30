@@ -18,6 +18,12 @@ module LogStash
       # Unary:  [op, operand, target]
       config :calculate, :validate => :array, :required => true
 
+      # Tags to add to an event if a calculation raises an unexpected runtime error
+      # (e.g. a non-integer operand passed to `round`). The calculation is skipped
+      # for that one entry and processing continues with the remaining calculations
+      # rather than crashing the pipeline.
+      config :tag_on_failure, :validate => :array, :default => ["_mathexception"]
+
       public
 
       def register
@@ -51,22 +57,14 @@ module LogStash
 
         calculate.each do |calc|
           unless calc.is_a?(Array) && [3, 4].include?(calc.size)
-            raise LogStash::ConfigurationError, I18n.t(
-              "logstash.runner.configuration.invalid_plugin_register",
-              plugin: "filter",
-              type: "math",
-              error: "Invalid calculation size: expected 3 (unary) or 4 (binary), got #{calc.size}. You specified: #{calc}"
-            )
+            raise LogStash::ConfigurationError,
+              "Invalid calculation size: expected 3 (unary) or 4 (binary), got #{calc.size}. You specified: #{calc}"
           end
 
           function_key = calc[0]
           unless all_function_keys.include?(function_key)
-            raise LogStash::ConfigurationError, I18n.t(
-              "logstash.runner.configuration.invalid_plugin_register",
-              plugin: "filter",
-              type: "math",
-              error: "Invalid function key '#{function_key}'. Must be one of: #{all_function_keys.join(', ')}"
-            )
+            raise LogStash::ConfigurationError,
+              "Invalid function key '#{function_key}'. Must be one of: #{all_function_keys.join(', ')}"
           end
 
           function = functions[function_key]
@@ -87,12 +85,8 @@ module LogStash
             lhs = left_element.literal? ? left_element.get : 1
             warning = function.invalid?(lhs, right_element.get)
             unless warning.nil?
-              raise LogStash::ConfigurationError, I18n.t(
-                "logstash.runner.configuration.invalid_plugin_register",
-                plugin: "filter",
-                type: "math",
-                error: "Invalid literal combination: #{warning}. Calculation: #{calc.join(', ')}"
-              )
+              raise LogStash::ConfigurationError,
+                "Numeric literals are specified as in the calculation but the function invalidates with '#{warning}'. Calculation: #{calc.join(', ')}"
             end
           end
 
@@ -101,12 +95,8 @@ module LogStash
         end
 
         if @calculate_copy.last.last.is_a?(MathCalculationElements::RegisterElement)
-          raise LogStash::ConfigurationError, I18n.t(
-            "logstash.runner.configuration.invalid_plugin_register",
-            plugin: "filter",
-            type: "math",
-            error: "The final target is a Register — the overall result won't be stored in the event."
-          )
+          raise LogStash::ConfigurationError,
+            "The final target is a Register, the overall calculation result will not be set in the event"
         end
       end
 
@@ -115,11 +105,13 @@ module LogStash
         context = EventRegisterContext.new(event)
 
         @calculate_copy.each do |function, left_element, right_element, result_element|
-          logger.debug("executing",
-                       "function" => function.name,
-                       "left_field" => left_element,
-                       "right_field" => right_element,
-                       "target" => result_element)
+          if logger.debug?
+            logger.debug("executing",
+                         "function" => function.name,
+                         "left_field" => left_element,
+                         "right_field" => right_element,
+                         "target" => result_element)
+          end
 
           operand1 = left_element.get(context)
           operand2 = right_element&.get(context)
@@ -128,17 +120,29 @@ module LogStash
           next if operand1.nil? || (right_element && operand2.nil?)
           next if function.invalid?(operand1, operand2, event)
 
-          result = if right_element
-                     function.call(operand1, operand2)
-                   else
-                     function.call(operand1)
-                   end
+          begin
+            result = if right_element
+                       function.call(operand1, operand2)
+                     else
+                       function.call(operand1)
+                     end
+          rescue StandardError => e
+            logger.warn("math calculation raised an exception, skipping this calculation",
+                         "function" => function.name,
+                         "operand1" => operand1,
+                         "operand2" => operand2,
+                         "error" => e.message)
+            tag_on_failure.each { |tag| event.tag(tag) }
+            next
+          end
 
           result_element.set(result, context)
-          logger.debug("calculation result stored",
-                       "function" => function.name,
-                       "target" => result_element,
-                       "result" => result)
+          if logger.debug?
+            logger.debug("calculation result stored",
+                         "function" => function.name,
+                         "target" => result_element,
+                         "result" => result)
+          end
           event_changed = true
         end
 
