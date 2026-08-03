@@ -1,12 +1,18 @@
 name: Test
 
-# Runs the spec suite on every push and pull request. This is separate from
-# release.yml, which only builds/publishes the gem when a version tag is pushed
-# — nothing was previously running `rspec` automatically before a release.
+# Runs the spec suite. This is separate from release.yml, which only builds/
+# publishes the gem when a version tag is pushed — nothing was previously
+# running `rspec` automatically before a release.
+#
+# NOTE: currently manual-only (workflow_dispatch), not on push/PR. The plugin's
+# Gemfile pins logstash-devutils >= 2.6, < 2.7, which requires logstash-core
+# >= 6.3 — but every published logstash-core-plugin-api version on rubygems.org
+# tops out requiring logstash-core = 5.6.4. Those two constraints can't both be
+# satisfied, so `bundle install` fails here the same way it does locally, on
+# main, independent of anything else in this repo. Re-enable the push/pull_request
+# triggers below once that dependency conflict is actually resolved.
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   rspec:

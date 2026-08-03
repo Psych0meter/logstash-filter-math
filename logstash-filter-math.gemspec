@@ -22,7 +22,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "logstash-core-plugin-api", ">= 1.60", "<= 2.99"
 
   # Development dependencies
-  s.add_development_dependency 'logstash-devutils', ">= 2.6", "< 2.7"
+  s.add_development_dependency 'logstash-devutils', ">= 1.0", "< 2.0"
 
   # Ruby version constraint
   s.required_ruby_version = '>= 3.0'
