@@ -1,0 +1,41 @@
+require:
+  - rubocop-performance
+
+AllCops:
+  NewCops: enable
+  TargetRubyVersion: 3.0
+  Exclude:
+    - 'vendor/**/*'
+
+# The one-line `def name; "add"; end` style used throughout math_functions.rb is
+# intentional (a table of tiny function objects reads better this way) — don't
+# fight it.
+Style/SingleLineMethods:
+  Enabled: false
+
+# Frozen string literal is already applied file-by-file; this just keeps new
+# files honest without rewriting every existing string literal usage at once.
+Style/FrozenStringLiteralComment:
+  Enabled: true
+  EnforcedStyle: always
+
+# The project's docstrings and error messages are often long and clearer for
+# it (e.g. the ConfigurationError messages in math.rb); a hard 80/100 wrap
+# isn't worth the churn here.
+Layout/LineLength:
+  Max: 140
+
+Metrics/MethodLength:
+  Max: 30
+
+Metrics/ClassLength:
+  Max: 150
+
+# math.rb's #register legitimately has to validate several calculation shapes
+# in one pass; splitting it up for this cop's sake would hurt readability more
+# than it helps.
+Metrics/AbcSize:
+  Max: 35
+
+Metrics/CyclomaticComplexity:
+  Max: 12

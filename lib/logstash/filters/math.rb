@@ -41,7 +41,16 @@ module LogStash
           [MathFunctions::FloatDivide.new, 'fdiv', 'float divide'],
           [MathFunctions::Abs.new, 'abs'],
           [MathFunctions::Negate.new, 'neg', 'negate'],
-          [MathFunctions::PercentChange.new, 'percent_change']
+          [MathFunctions::PercentChange.new, 'percent_change'],
+          [MathFunctions::Floor.new, 'floor'],
+          [MathFunctions::Ceil.new, 'ceil'],
+          [MathFunctions::Sign.new, 'sign'],
+          [MathFunctions::Sqrt.new, 'sqrt'],
+          [MathFunctions::Cbrt.new, 'cbrt'],
+          [MathFunctions::Ln.new, 'ln'],
+          [MathFunctions::Log10.new, 'log10'],
+          [MathFunctions::Min.new, 'min'],
+          [MathFunctions::Max.new, 'max']
         ].each do |list|
           func = list.shift
           list.each { |key| functions[key] = func }
@@ -81,9 +90,19 @@ module LogStash
             right_element = nil
           end
 
-          if right_element&.literal?
-            lhs = left_element.literal? ? left_element.get : 1
-            warning = function.invalid?(lhs, right_element.get)
+          if right_element
+            if right_element.literal?
+              lhs = left_element.literal? ? left_element.get : 1
+              warning = function.invalid?(lhs, right_element.get)
+              unless warning.nil?
+                raise LogStash::ConfigurationError,
+                  "Numeric literals are specified as in the calculation but the function invalidates with '#{warning}'. Calculation: #{calc.join(', ')}"
+              end
+            end
+          elsif left_element.literal?
+            # Unary calculation with a literal operand: fully known at register time, so it
+            # can be validated up front rather than warned-and-skipped on every event.
+            warning = function.invalid?(left_element.get)
             unless warning.nil?
               raise LogStash::ConfigurationError,
                 "Numeric literals are specified as in the calculation but the function invalidates with '#{warning}'. Calculation: #{calc.join(', ')}"

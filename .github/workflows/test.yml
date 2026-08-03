@@ -1,0 +1,32 @@
+name: Test
+
+# Runs the spec suite on every push and pull request. This is separate from
+# release.yml, which only builds/publishes the gem when a version tag is pushed
+# — nothing was previously running `rspec` automatically before a release.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  rspec:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # This plugin targets logstash-core-plugin-api ">= 1.60, <= 2.99" and
+        # requires JRuby (the runtime Logstash itself embeds). Add more JRuby
+        # versions here if you need to confirm compatibility across a wider range.
+        jruby: ['9.4.9.0']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JRuby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: jruby-${{ matrix.jruby }}
+          bundler-cache: true
+
+      - name: Run specs
+        run: bundle exec rspec --format documentation

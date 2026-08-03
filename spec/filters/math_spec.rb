@@ -431,6 +431,153 @@ describe LogStash::Filters::Math do
         end
       end
     end
+
+    describe "Floor" do
+      config <<-CONFIG
+        filter {  math { calculate => [ [ "floor", "var1", "result" ] ] } }
+      CONFIG
+
+      sample( "var1" => 5.7 ) do
+        expect( subject.get("result") ).to eq( 5 )
+      end
+
+      sample( "var1" => -5.1 ) do
+        expect( subject.get("result") ).to eq( -6 )
+      end
+    end
+
+    describe "Ceil" do
+      config <<-CONFIG
+        filter {  math { calculate => [ [ "ceil", "var1", "result" ] ] } }
+      CONFIG
+
+      sample( "var1" => 5.1 ) do
+        expect( subject.get("result") ).to eq( 6 )
+      end
+
+      sample( "var1" => -5.7 ) do
+        expect( subject.get("result") ).to eq( -5 )
+      end
+    end
+
+    describe "Sign" do
+      config <<-CONFIG
+        filter {  math { calculate => [ [ "sign", "var1", "result" ] ] } }
+      CONFIG
+
+      sample( "var1" => 42 ) do
+        expect( subject.get("result") ).to eq( 1 )
+      end
+
+      sample( "var1" => -42 ) do
+        expect( subject.get("result") ).to eq( -1 )
+      end
+
+      sample( "var1" => 0 ) do
+        expect( subject.get("result") ).to eq( 0 )
+      end
+    end
+
+    describe "Sqrt" do
+      config <<-CONFIG
+        filter {  math { calculate => [ [ "sqrt", "var1", "result" ] ] } }
+      CONFIG
+
+      sample( "var1" => 16 ) do
+        expect( subject.get("result") ).to eq( 4.0 )
+      end
+
+      describe "a negative operand should result in nil" do
+        sample( "var1" => -16 ) do
+          expect( subject.get("result") ).to be_nil
+        end
+      end
+
+      context "a negative literal operand is detected at plugin register" do
+        it "raises a validation error" do
+          pipeline = new_pipeline_from_string('filter {  math { calculate => [ [ "sqrt", -4, "result" ] ] } }')
+          expect { pipeline.instance_eval{ @filters.each(&:register) } }.to raise_exception(LogStash::ConfigurationError, /sqrt of a negative number/)
+        end
+      end
+    end
+
+    describe "Cbrt" do
+      config <<-CONFIG
+        filter {  math { calculate => [ [ "cbrt", "var1", "result" ] ] } }
+      CONFIG
+
+      sample( "var1" => 27 ) do
+        expect( subject.get("result") ).to eq( 3.0 )
+      end
+
+      describe "a negative operand should work (unlike sqrt)" do
+        sample( "var1" => -27 ) do
+          expect( subject.get("result") ).to eq( -3.0 )
+        end
+      end
+    end
+
+    describe "Ln" do
+      config <<-CONFIG
+        filter {  math { calculate => [ [ "ln", "var1", "result" ] ] } }
+      CONFIG
+
+      sample( "var1" => 1 ) do
+        expect( subject.get("result") ).to eq( 0.0 )
+      end
+
+      describe "a zero or negative operand should result in nil" do
+        sample( "var1" => 0 ) do
+          expect( subject.get("result") ).to be_nil
+        end
+      end
+    end
+
+    describe "Log10" do
+      config <<-CONFIG
+        filter {  math { calculate => [ [ "log10", "var1", "result" ] ] } }
+      CONFIG
+
+      sample( "var1" => 100 ) do
+        expect( subject.get("result") ).to eq( 2.0 )
+      end
+
+      describe "a zero or negative operand should result in nil" do
+        sample( "var1" => -1 ) do
+          expect( subject.get("result") ).to be_nil
+        end
+      end
+    end
+  end
+
+  describe "Min/Max" do
+    describe "Min" do
+      config <<-CONFIG
+        filter {  math { calculate => [ [ "min", "var1", "var2", "result" ] ] } }
+      CONFIG
+
+      sample( "var1" => 5, "var2" => 9 ) do
+        expect( subject.get("result") ).to eq( 5 )
+      end
+
+      sample( "var1" => 9, "var2" => 5 ) do
+        expect( subject.get("result") ).to eq( 5 )
+      end
+    end
+
+    describe "Max" do
+      config <<-CONFIG
+        filter {  math { calculate => [ [ "max", "var1", "var2", "result" ] ] } }
+      CONFIG
+
+      sample( "var1" => 5, "var2" => 9 ) do
+        expect( subject.get("result") ).to eq( 9 )
+      end
+
+      sample( "var1" => 9, "var2" => 5 ) do
+        expect( subject.get("result") ).to eq( 9 )
+      end
+    end
   end
 
   describe "PercentChange" do
@@ -515,6 +662,78 @@ describe LogStash::Filters::Math do
       end
       sample( "var1" => 212 ) do
         expect( subject.get("result") ).to eq( 100.0 )
+      end
+    end
+
+    describe "bytes_to_kb" do
+      config <<-CONFIG
+        filter {  math { calculate => [ [ "bytes_to_kb", "var1", "result" ] ] } }
+      CONFIG
+      sample( "var1" => 1024 ) do
+        expect( subject.get("result") ).to eq( 1.0 )
+      end
+    end
+
+    describe "kb_to_bytes" do
+      config <<-CONFIG
+        filter {  math { calculate => [ [ "kb_to_bytes", "var1", "result" ] ] } }
+      CONFIG
+      sample( "var1" => 1 ) do
+        expect( subject.get("result") ).to eq( 1024.0 )
+      end
+    end
+
+    describe "bytes_to_mb" do
+      config <<-CONFIG
+        filter {  math { calculate => [ [ "bytes_to_mb", "var1", "result" ] ] } }
+      CONFIG
+      sample( "var1" => 1048576 ) do
+        expect( subject.get("result") ).to eq( 1.0 )
+      end
+    end
+
+    describe "mb_to_bytes" do
+      config <<-CONFIG
+        filter {  math { calculate => [ [ "mb_to_bytes", "var1", "result" ] ] } }
+      CONFIG
+      sample( "var1" => 1 ) do
+        expect( subject.get("result") ).to eq( 1048576.0 )
+      end
+    end
+
+    describe "bytes_to_gb" do
+      config <<-CONFIG
+        filter {  math { calculate => [ [ "bytes_to_gb", "var1", "result" ] ] } }
+      CONFIG
+      sample( "var1" => 1073741824 ) do
+        expect( subject.get("result") ).to eq( 1.0 )
+      end
+    end
+
+    describe "gb_to_bytes" do
+      config <<-CONFIG
+        filter {  math { calculate => [ [ "gb_to_bytes", "var1", "result" ] ] } }
+      CONFIG
+      sample( "var1" => 1 ) do
+        expect( subject.get("result") ).to eq( 1073741824.0 )
+      end
+    end
+
+    describe "ms_to_s" do
+      config <<-CONFIG
+        filter {  math { calculate => [ [ "ms_to_s", "var1", "result" ] ] } }
+      CONFIG
+      sample( "var1" => 1500 ) do
+        expect( subject.get("result") ).to eq( 1.5 )
+      end
+    end
+
+    describe "s_to_ms" do
+      config <<-CONFIG
+        filter {  math { calculate => [ [ "s_to_ms", "var1", "result" ] ] } }
+      CONFIG
+      sample( "var1" => 1.5 ) do
+        expect( subject.get("result") ).to eq( 1500.0 )
       end
     end
   end
