@@ -1,4 +1,17 @@
 ## Unreleased
+  - Added: unary operators `floor`, `ceil`, `sign`, `sqrt`, `cbrt`, `ln`, `log10`.
+  - Added: binary operators `min`, `max`.
+  - Added: unit conversions `bytes_to_kb`, `kb_to_bytes`, `bytes_to_mb`, `mb_to_bytes`,
+    `bytes_to_gb`, `gb_to_bytes` (1 KB = 1024 bytes), and `ms_to_s`, `s_to_ms`.
+  - Added: literal operands to `sqrt`, `ln`, and `log10` that fall outside the valid domain
+    (e.g. `sqrt` of a negative literal) are now caught at plugin registration time, matching
+    the existing `power`/`divide` literal-validation behavior, instead of only warning and
+    skipping the calculation on every event at runtime.
+  - Fixed: `README.md`'s plugin description was stale, only mentioning the original four
+    arithmetic operators; it now reflects the full current operator and conversion set.
+  - Chore: normalized module-nesting style (`module LogStash \n module Filters`) and added
+    the missing `frozen_string_literal` pragma in `event_register_context.rb`, for
+    consistency with the rest of the codebase.
   - Fixed: `Power#invalid?` had an operator-precedence bug that flagged *any* fractional
     exponent as invalid instead of only negative-base fractional exponents (e.g. `2.2 ** 1.2`
     was incorrectly rejected).

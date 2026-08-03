@@ -1,0 +1,26 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  rubocop:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2' # plain MRI is fine for rubocop; no JRuby/logstash-core needed
+          bundler-cache: true
+
+      - name: Run rubocop
+        # This is the first time rubocop has run against this codebase, so treat
+        # findings as advisory rather than build-breaking until the backlog (if
+        # any) has been triaged. Flip this to `false` once you're happy with it.
+        continue-on-error: true
+        run: bundle exec rubocop

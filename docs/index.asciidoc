@@ -145,6 +145,15 @@ The first element must be the operator. Valid operators are:
 | FloatDivide | 'fdiv', 'float divide'
 | Abs (unary) | 'abs'
 | Negate (unary) | 'neg', 'negate'
+| Floor (unary) | 'floor'
+| Ceiling (unary) | 'ceil'
+| Sign (unary) | 'sign'
+| Square root (unary) | 'sqrt'
+| Cube root (unary) | 'cbrt'
+| Natural logarithm (unary) | 'ln'
+| Base-10 logarithm (unary) | 'log10'
+| Minimum | 'min'
+| Maximum | 'max'
 | Percent change | 'percent_change'
 | Miles to kilometers (unary) | 'mi_to_km'
 | Kilometers to miles (unary) | 'km_to_mi'
@@ -152,6 +161,14 @@ The first element must be the operator. Valid operators are:
 | Feet to meters (unary) | 'ft_to_m'
 | Celsius to Fahrenheit (unary) | 'c_to_f'
 | Fahrenheit to Celsius (unary) | 'f_to_c'
+| Bytes to kilobytes (unary, 1 KB = 1024 bytes) | 'bytes_to_kb'
+| Kilobytes to bytes (unary) | 'kb_to_bytes'
+| Bytes to megabytes (unary) | 'bytes_to_mb'
+| Megabytes to bytes (unary) | 'mb_to_bytes'
+| Bytes to gigabytes (unary) | 'bytes_to_gb'
+| Gigabytes to bytes (unary) | 'gb_to_bytes'
+| Milliseconds to seconds (unary) | 'ms_to_s'
+| Seconds to milliseconds (unary) | 's_to_ms'
 |=======================================================================
 
 [TIP]
@@ -198,8 +215,17 @@ event is tagged with the values in this setting, and the remaining calculations 
 The operators `Divide`, `FloatDivide` and `Modulo` have a divide by zero check before the operation is executed. +
 The `Power` operator has a check for a negative number being raised to a fractional power as this results in
 a Complex number that can't be stored in an event or serialized to JSON. +
+The `Sqrt` operator has a check for a negative operand, and `Ln`/`Log10` have a check for a
+zero or negative operand, for the same reason (the real result is undefined or complex). +
+`Cbrt` has no such restriction since the real cube root is defined for negative numbers. +
 The `Round` operator can convert integers to floats `round(42, 1) -> 42.0`
 and floats to integers (rounding up or down) `round(0.75, 0) -> 1`.
+
+[NOTE]
+As with the `Power`/`Divide` literal checks, if you pass a literal operand to `sqrt`, `ln`,
+or `log10` that falls outside the valid domain (e.g. `[ "sqrt", -4, "result" ]`), this is
+detected at plugin registration time and raises a configuration error rather than silently
+skipping the calculation on every event.
 
 ===== Memory Registers
 You can choose not to use memory registers and store intermediate results in fields instead but then you may

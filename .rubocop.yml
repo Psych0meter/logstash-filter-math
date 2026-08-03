@@ -1,0 +1,46 @@
+plugins:
+  - rubocop-performance
+
+AllCops:
+  NewCops: enable
+  TargetRubyVersion: 3.0
+  Exclude:
+    - 'vendor/**/*'
+
+# This codebase has a consistent, deliberate legacy Ruby style throughout:
+# double-quoted strings, hash-rocket `:key => value` syntax, and spaced-out
+# `expect( x ).to eq( y )` calls in specs. Rather than have rubocop fight the
+# entire file over cosmetic preference, the Style and Layout departments are
+# disabled wholesale — only Lint (catches real bugs) and a few Metrics cops
+# (catch genuinely oversized methods) stay on. Flip individual cops back on
+# under their own key below if you want to enforce a specific convention
+# going forward.
+Style:
+  Enabled: false
+
+Layout:
+  Enabled: false
+
+Metrics/MethodLength:
+  Max: 30
+
+Metrics/ClassLength:
+  Max: 150
+
+# math.rb's #register legitimately has to validate several calculation shapes
+# in one pass; splitting it up for this cop's sake would hurt readability more
+# than it helps.
+Metrics/AbcSize:
+  Max: 35
+
+Metrics/CyclomaticComplexity:
+  Max: 12
+
+Metrics/BlockLength:
+  Max: 40
+
+# Comparing floating-point calculation results for exact equality is the
+# whole point of this plugin's spec suite (it's testing arithmetic, not
+# guarding against float drift) — this cop doesn't apply here.
+Lint/FloatComparison:
+  Enabled: false

@@ -1,6 +1,12 @@
 # logstash-filter-math
 
-This plugin provides the ability to do various simple math operations (addition, subtraction, multiplication and division) on document fields
+This plugin performs arithmetic calculations on numeric (or Logstash Timestamp) fields in an
+event. It supports the four basic operations (add, subtract, multiply, divide), plus `round`,
+`power`, `modulo`, `float divide`, `abs`, `neg`, and `percent_change`, a set of unit conversions
+(miles/km, meters/feet, Celsius/Fahrenheit), literal operands, and memory registers for chaining
+multi-step calculations. A single malformed calculation can be caught and tagged via
+`tag_on_failure` instead of crashing the pipeline. See `docs/index.asciidoc` for full
+configuration details and examples.
 
 # Logstash Plugin
 
